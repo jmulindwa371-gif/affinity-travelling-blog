@@ -1,0 +1,81 @@
+---
+import BaseLayout from './BaseLayout.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  author: string;
+  slug: string;
+}
+
+const { title, description, pubDate, author, slug } = Astro.props;
+const url = new URL(`/blog/${slug}/`, Astro.site).toString();
+
+const formattedDate = pubDate.toLocaleDateString('en-GB', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+
+// JSON-LD structured data for Google
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: title,
+  description: description,
+  datePublished: pubDate.toISOString(),
+  author: {
+    '@type': 'Person',
+    name: author,
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: 'Affinity Travelling',
+    url: 'https://www.affinitytravelling.com',
+  },
+  mainEntityOfPage: {
+    '@type': 'WebPage',
+    '@id': url,
+  },
+};
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  type="article"
+  pubDate={pubDate}
+  author={author}
+>
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify(jsonLd)}
+    slot="head"
+  />
+  <article class="container">
+    <h1>{title}</h1>
+    <div class="meta">
+      <span>By {author}</span>
+      <span class="sep">·</span>
+      <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+    </div>
+    <slot />
+
+    <hr />
+
+    <div class="cta-box">
+      <h3>Stop chasing documents across WhatsApp.</h3>
+      <p>
+        Affinity Travelling is the tool I built so the next sponsor doesn't go through what I went
+        through. Free to start, your applicant uploads via a QR code — no app required on their
+        side. EU servers, GDPR compliant, encrypted.
+      </p>
+      <a href="https://www.affinitytravelling.com" class="cta-button">Try it free →</a>
+    </div>
+
+    <p style="font-family: var(--sans); font-size: 0.85rem; color: var(--muted); margin-top: 2rem;">
+      Have questions about your sponsorship situation? Email me directly — I read everything.
+    </p>
+  </article>
+</BaseLayout>
