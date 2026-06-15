@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog'))
+  .filter((p) => !p.data.draft)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<BaseLayout
+  title="Affinity Travelling Blog"
+  description="Practical, honest writing on sponsoring Schengen visitor visas — from someone who's been through it. Document checklists, application walkthroughs, and lessons learned."
+>
+  <div class="container">
+    <h1>Notes from sponsoring a visa</h1>
+    <p class="lede">
+      Practical, honest writing on inviting family and friends to visit Norway. Written by Joseph
+      Mulindwa, who built <a href="https://www.affinitytravelling.com">Affinity Travelling</a> after
+      doing this for his own family.
+    </p>
+
+    <hr />
+
+    <ul style="list-style: none; padding: 0; margin: 0;">
+      {
+        posts.map((post) => (
+          <li style="margin-bottom: 2.5rem;">
+            <a
+              href={`/blog/${post.id}/`}
+              style="text-decoration: none; color: inherit; display: block;"
+            >
+              <h2 style="margin-top: 0; margin-bottom: 0.4rem;">{post.data.title}</h2>
+              <div class="meta" style="margin-bottom: 0.6rem;">
+                <time datetime={post.data.date.toISOString()}>
+                  {post.data.date.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </time>
+              </div>
+              <p style="margin: 0; color: var(--ink);">{post.data.description}</p>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    {
+      posts.length === 0 && (
+        <p style="color: var(--muted); font-style: italic;">No posts yet. Check back soon.</p>
+      )
+    }
+  </div>
+</BaseLayout>
