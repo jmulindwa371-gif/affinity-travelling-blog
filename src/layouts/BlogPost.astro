@@ -62,6 +62,16 @@ const jsonLd = {
     </div>
     <slot />
 
+    <div class="lead-magnet">
+      <h3>Get the printable checklist</h3>
+      <p>One-page tick-off sheet — same documents as above, formatted for printing. Drop your email and I’ll send you the download link. No marketing emails, no list-sharing.</p>
+      <form id="lead-magnet-form" novalidate>
+        <input type="email" name="email" placeholder="your@email.com" required autocomplete="email" aria-label="Email address" />
+        <button type="submit">Send me the checklist</button>
+        <p class="lm-status" data-state="idle" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+
     <hr />
 
     <div class="cta-box">
@@ -79,3 +89,121 @@ const jsonLd = {
     </p>
   </article>
 </BaseLayout>
+
+<style>
+  .lead-magnet {
+    background: white;
+    border: 1px solid var(--rule);
+    padding: 1.5rem 1.6rem;
+    margin: 2.4rem 0;
+    border-radius: 6px;
+    font-family: var(--sans);
+  }
+  .lead-magnet h3 {
+    font-size: 1.18rem;
+    margin: 0 0 0.5rem;
+    color: var(--navy);
+  }
+  .lead-magnet p {
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin: 0 0 1rem;
+  }
+  .lead-magnet form {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .lead-magnet input[type='email'] {
+    flex: 1 1 220px;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.15s;
+    color: var(--ink);
+    background: white;
+  }
+  .lead-magnet input[type='email']:focus {
+    border-color: var(--gold);
+  }
+  .lead-magnet button {
+    background: var(--navy);
+    color: white;
+    border: 0;
+    padding: 0.65rem 1.15rem;
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .lead-magnet button:hover:not(:disabled) {
+    background: var(--navy-dark);
+  }
+  .lead-magnet button:disabled {
+    background: var(--muted);
+    cursor: wait;
+  }
+  .lead-magnet .lm-status {
+    width: 100%;
+    font-size: 0.88rem;
+    margin: 0.6rem 0 0;
+    min-height: 1.2em;
+    color: transparent;
+  }
+  .lead-magnet .lm-status[data-state='success'] { color: #1f8a3a; }
+  .lead-magnet .lm-status[data-state='error'] { color: #c0392b; }
+  .lead-magnet .lm-status[data-state='loading'] { color: var(--muted); }
+</style>
+
+<script is:inline>
+  (function() {
+    const form = document.getElementById('lead-magnet-form');
+    if (!form) return;
+    const status = form.querySelector('.lm-status');
+    const button = form.querySelector('button');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = form.email.value.trim();
+      if (!email || !email.includes('@') || !email.includes('.')) {
+        status.textContent = 'Please enter a valid email address.';
+        status.dataset.state = 'error';
+        return;
+      }
+      button.disabled = true;
+      status.textContent = 'Sending…';
+      status.dataset.state = 'loading';
+      try {
+        const r = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok) {
+          if (typeof gtag === 'function') {
+            gtag('event', 'generate_lead', { method: 'checklist_pdf' });
+          }
+          status.textContent = 'Thanks — opening your checklist…';
+          status.dataset.state = 'success';
+          setTimeout(() => {
+            window.location.href = '/norway-visa-sponsor-checklist.pdf';
+          }, 900);
+        } else {
+          status.textContent = data.error || 'Something went wrong. Try again?';
+          status.dataset.state = 'error';
+          button.disabled = false;
+        }
+      } catch (err) {
+        status.textContent = 'Network error. Try again?';
+        status.dataset.state = 'error';
+        button.disabled = false;
+      }
+    });
+  })();
+</script>
