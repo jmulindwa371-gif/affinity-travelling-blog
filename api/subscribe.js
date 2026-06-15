@@ -1,10 +1,12 @@
 // Vercel serverless function
 // POST { email } -> adds the contact to a Resend Audience.
-// No domain verification required — Audiences API stores contacts only.
+// Auto-discovers the audience ID (uses the first one in the account), so the
+// only required env var is RESEND_API_KEY.
 //
-// Required env vars (set in Vercel project settings):
-//   RESEND_API_KEY       — Resend secret API key (re_...)
-//   RESEND_AUDIENCE_ID   — UUID of the Resend audience to add contacts to
+// Required env var (set in Vercel project settings):
+//   RESEND_API_KEY       — Resend secret API key (re_...). Needs Full access.
+// Optional env var:
+//   RESEND_AUDIENCE_ID   — Override the auto-discovered audience.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,10 +21,25 @@ export default async function handler(req, res) {
     }
 
     const apiKey = process.env.RESEND_API_KEY;
-    const audienceId = process.env.RESEND_AUDIENCE_ID;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'Server misconfigured (missing RESEND_API_KEY).' });
+    }
 
-    if (!apiKey || !audienceId) {
-      return res.status(500).json({ error: 'Server misconfigured (missing Resend env vars).' });
+    let audienceId = process.env.RESEND_AUDIENCE_ID;
+
+    if (!audienceId) {
+      const listResp = await fetch('https://api.resend.com/audiences', {
+        headers: { Authorization: 'Bearer ' + apiKey },
+      });
+      if (!listResp.ok) {
+        return res.status(500).json({ error: 'Could not list audiences (' + listResp.status + ').' });
+      }
+      const listJson = await listResp.json().catch(() => ({}));
+      const audiences = listJson.data || listJson.audiences || [];
+      audienceId = audiences[0] && audiences[0].id;
+      if (!audienceId) {
+        return res.status(500).json({ error: 'No audience found in Resend account.' });
+      }
     }
 
     const resp = await fetch(
@@ -44,7 +61,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // Treat "already exists" as success so users always get the PDF.
     const err = await resp.json().catch(() => ({}));
     const msg = (err && err.message ? String(err.message) : '').toLowerCase();
     if (resp.status === 409 || msg.includes('already') || msg.includes('exists')) {
